@@ -26,5 +26,4 @@ function [dx] = ControlDynamics(t, x, u)
     dx(2) = x(4);
     dx(3) = ddq(1);
     dx(4) = ddq(2);
-
 end
