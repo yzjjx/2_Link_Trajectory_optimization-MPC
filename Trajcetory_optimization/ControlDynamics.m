@@ -14,6 +14,12 @@ function [dx] = ControlDynamics(t, x, u)
     dq_1 = x(3);
     dq_2 = x(4);
 
+    T = u(end);
+    N = (numel(u) - 1)/2;
+    t_points = linspace(0, T, N);
+    tau_points = reshape(u(1:end-1), 2, [])';
+    u = interp1(t_points, tau_points, t)';
+
     M = [m_2*L_1^2 + 2*m_2*cos(q_2)*L_1*lc_2 + m_1*lc_1^2 + m_2*lc_2^2 + I_zz1 + I_zz2, m_2*lc_2^2 + L_1*m_2*cos(q_2)*lc_2 + I_zz2;
                                    m_2*lc_2^2 + L_1*m_2*cos(q_2)*lc_2 + I_zz2,                         m_2*lc_2^2 + I_zz2];
 

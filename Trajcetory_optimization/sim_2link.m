@@ -2,7 +2,7 @@ clc;clear;close all;
 
 tspan = [0 10];
 x0 = [1; 0; 1; 0];
-u0 = [0;0]
+u0 = [0; 0; 0; 0; tspan(end)];
 
 % ODE45仿真
 [tout, xout] = ode45(@(t,x) ControlDynamics(t,x,u0), tspan, x0);

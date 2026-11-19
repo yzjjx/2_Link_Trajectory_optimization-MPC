@@ -61,4 +61,153 @@ $$
 
 那么只要得到质量矩阵 $M$ 和偏置力矩 $h$ ，就可以矩阵计算得到 $\ddot{q}$
 
+h的求法可以参考代码：`Trajcetory_optimization\cal_h.m`
+
 # 单重打靶：轨迹优化
+整个代码文件为：`Trajcetory_optimization`
+
+构建的整个控制输入为：
+
+$$
+u=\begin{bmatrix}\tau_{11}\\
+\tau_{21} \\
+ \tau_{12}\\
+\tau_{22} \\
+\tau_{13} \\
+\tau_{23}\\
+...\\
+\tau_{1N} \\
+\tau_{2N}\\
+T
+\end{bmatrix}
+$$
+
+## 仿真模型建立
+这个函数的意思就是在每个t时间点持续输入u，然后用动力学方程计算出来x的值
+
+主要代码：
+
+```matlab
+T = u(end);
+N = (numel(u) - 1)/2;
+t_points = linspace(0, T, N);
+tau_points = reshape(u(1:end-1), 2, [])';
+u = interp1(t_points, tau_points, t)';
+```
+
+在上面代码里面，第一行是提取控制时间，第二行是计算多少步的控制输入，第三行是线性插值，第四行是对力矩的转换，这里将控制输入转换为：
+
+$$
+tau \_ points = \begin{bmatrix}
+\tau_{11}  & \tau_{21}\\
+\tau_{12}  & \tau_{22} \\
+\tau_{13}  & \tau_{23} \\
+... & ...\\
+\tau_{1N}  & \tau_{2N}
+\end{bmatrix}
+$$
+
+然后最后一行是得到一个一行两列的点，在转置回来
+
+建立仿真模型的代码参考：`Trajcetory_optimization\ControlDynamics.m`
+
+可以查看初始值为: $x_0 = [1;0;1;0]$ 的效果，即初始q1位置为1，q1速度为1
+
+<div align="center">
+    <img src="Trajcetory_optimization\fig\初始x1010.png">
+    <br>
+</div>
+
+这个给定输入的仿真使用了ode45，主要代码为：
+
+```matlab
+tspan = [0 10];
+x0 = [1; 0; 1; 0];
+u0 = [0; 0; 0; 0; tspan(end)];
+
+% ODE45仿真
+[tout, xout] = ode45(@(t,x) ControlDynamics(t,x,u0), tspan, x0);
+```
+
+## 代价函数建立
+代价函数建立的代码参见`Trajcetory_optimization\cost_fun.m`
+
+主要公式为：
+
+$$
+f(u) = (\sum_{i=1}^{N}F_i^2 )\Delta t
+$$
+
+为了方便计算平方，这里面同样使用了矩阵的转换reshape函数
+
+主要代码为：
+
+```matlab
+tau_nodes = reshape(F_vec, 2, [])';
+% cost = sum(F_vec(1:end-1).^2)*dt; 
+torque_sq = tau_nodes(:,1).^2 + tau_nodes(:,2).^2;
+
+cost = dt * (0.5*torque_sq(1) ...
+            + sum(torque_sq(2:end-1)) ...
+            + 0.5*torque_sq(end));
+```
+
+## 非线性约束建立
+非线性约束代码参见：`Trajcetory_optimization\nonlcon.m`
+
+首先建立不等式约束，可以规定所有力为正数，有：
+
+```matlab
+F_vec = u(1:end-1);
+g = -F_vec;
+```
+
+然后建立等式约束，即每个关节角移动到指定位置  
+在建立等式约束的时候，因为需要知道最终运动时间的关节角，所以要进行ODE仿真
+
+```matlab
+% 等式约束
+tspan = [0 T];
+x0 = [0;1;0;1];
+
+dynamics = @(t,x) ControlDynamics(t,x,u);
+[tout,xout] = ode45(dynamics,tspan,x0);
+
+q1_final = xout(end,1);
+q2_final = xout(end,2);
+dq1_final = xout(end,3);
+dq2_final = xout(end,4);
+
+q1_target = deg2rad(20);
+q2_target = deg2rad(30);
+geq = [q1_final-q1_target;q2_final-q2_target;dq1_final;dq2_final];
+```
+
+## 主函数：fmincon
+
+因为系统不稳定容易发散，建议直接给差不多的初始猜测，这样才能运行完整，其中制作连杆运动动画为AI生成，其余均为自己编写，最终效果如下图所示：
+
+输入力矩为：
+
+<div align="center">
+    <img src="Trajcetory_optimization\fig\输入力矩.png">
+    <br>
+</div>
+
+关节角与关节速度为：
+
+<div align="center">
+    <img src="Trajcetory_optimization\fig\轨迹优化结果.png">
+    <br>
+</div>
+
+轨迹运动动画为：
+
+<div align="center">
+    <img src="Trajcetory_optimization\fig\轨迹运动.gif">
+    <br>
+</div>
+
+注意：**轨迹优化依赖于较好的初始猜测，才能最终收敛到指定的大小，如果都给1，那么基本上无法收敛**
+
+在main和nonlcon存在注释的不添加力矩约束和给定固定初始值的代码，可以尝试取消注释查看
