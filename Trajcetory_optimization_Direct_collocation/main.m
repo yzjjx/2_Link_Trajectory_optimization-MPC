@@ -7,7 +7,7 @@ q1_init = ones(N,1);
 dq1_init = ones(N,1);
 q2_init = ones(N,1);
 dq2_init = ones(N,1);
-T_init = 3;
+T_init = 1;
 w0 = [tau1_init;tau2_init;q1_init;q2_init;dq1_init;dq2_init;T_init];
 
 % 线性约束没有

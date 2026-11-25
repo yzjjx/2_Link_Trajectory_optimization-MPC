@@ -1,4 +1,5 @@
-# 二连杆单重打靶仿真
+# 二连杆机器人MPC系列仿真
+## 简介
 目标为：让二连杆机器人末端到指定的位置
 
 使用机器人模型为：
@@ -30,7 +31,7 @@ $$
 \end{bmatrix}
 $$
 
-# 仿真模型建立
+## 仿真模型建立
 在之前的代码中，可以得到模型：
 ```
 采样次数：28；参数单项式：9；独立参数组合：5。
@@ -52,7 +53,7 @@ m_2*L_1^2 + m_1*lc_1^2 + I_zz1
 验证通过：tau - Y*pi_param = 0。
 ```
 
-## ddq的求法
+### ddq的求法
 因为现在是使用回归方式进行建模，回归式为：
 
 $$
@@ -63,7 +64,9 @@ $$
 
 h的求法可以参考代码：`Trajcetory_optimization\cal_h.m`
 
-## 单重打靶：轨迹优化
+## 轨迹优化：单重打靶
+打靶法与配点法最大的区别就是，**打靶法的决策向量只有控制量，没有状态量**
+
 整个代码文件为：`Trajcetory_optimization`
 
 构建的整个控制输入为：
@@ -82,7 +85,7 @@ T
 \end{bmatrix}
 $$
 
-## 仿真模型建立
+### 仿真模型建立
 这个函数的意思就是在每个t时间点持续输入u，然后用动力学方程计算出来x的值
 
 主要代码：
@@ -129,7 +132,13 @@ u0 = [0; 0; 0; 0; tspan(end)];
 [tout, xout] = ode45(@(t,x) ControlDynamics(t,x,u0), tspan, x0);
 ```
 
-## 代价函数建立
+ODE45是数值积分方法，ODE算出来的就是数值计算法的 $\dot{x}$ ，也就是ODE455负责将加速度积分为速度，将速度积分为角度
+
+**也就是说动力学得到了当前时刻的dx和ddx，然后积分方法得到下一步的x和dx**
+
+该代码可以查看：`Trajcetory_optimization\sim_2link.m`
+
+### 代价函数建立
 代价函数建立的代码参见`Trajcetory_optimization\cost_fun.m`
 
 主要公式为：
@@ -152,7 +161,7 @@ cost = dt * (0.5*torque_sq(1) ...
             + 0.5*torque_sq(end));
 ```
 
-## 非线性约束建立
+### 非线性约束建立
 非线性约束代码参见：`Trajcetory_optimization\nonlcon.m`
 
 首先建立不等式约束，可以规定所有力为正数，有：
@@ -182,8 +191,8 @@ q1_target = deg2rad(20);
 q2_target = deg2rad(30);
 geq = [q1_final-q1_target;q2_final-q2_target;dq1_final;dq2_final];
 ```
-
-## 主函数：fmincon
+因此，单重打靶主要是进行完整的积分，然后关注最后一个点是否达到了指定的状态
+### 主函数：fmincon
 
 因为系统不稳定容易发散，建议直接给差不多的初始猜测，这样才能运行完整，其中制作连杆运动动画为AI生成，其余均为自己编写，最终效果如下图所示：
 
@@ -212,12 +221,79 @@ geq = [q1_final-q1_target;q2_final-q2_target;dq1_final;dq2_final];
 
 在main和nonlcon存在注释的不添加力矩约束和给定固定初始值的代码，可以尝试取消注释查看
 
-## 直接配点法：轨迹规划
+## 轨迹规划：直接配点法
+所有代码可以查看文件：`Trajcetory_optimization_Direct_collocation`
 对于不稳定系统或者欠驱动系统，直接配点法比单重打靶更加有效
 
 直接配点法与单重打靶的区别之一是决策变量加入了状态参数，使用前向欧拉作为约束
 
+### 非线性约束建立
+代码参考：`MPC_Direct_collocation\nonlcon.m`
+
 相比于单重打靶，这里的非线性约束就不再使用ODE45进行完全仿真，而是使用前向欧拉
+
+这里的不等式约束加入了力矩的最大值与最小值作为约束，代码如下：
+
+```matlab
+% 不等式约束
+T = w(end);
+N = (numel(w)-1)/6;
+tau_max = 100*ones(N,1);
+tau_min = -100*ones(N,1);
+
+tau1 = w(1:N);
+tau2 = w(N+1:2*N);
+q1 = w(2*N+1:3*N);
+q2 = w(3*N+1:4*N);
+dq1 = w(4*N+1:5*N);
+dq2 = w(5*N+1:6*N);
+g = [-T;-tau1+tau_min;tau1-tau_max;-tau2+tau_min;tau2-tau_max];
+```
+
+### 配点约束对比
+#### 显式欧拉法
+显式欧拉N=20，下面为结果：
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\配点法：显式欧拉：位置.png">
+    <br>
+</div>
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\配点法：显式欧拉.gif">
+    <br>
+</div>
+
+#### 隐式欧拉法
+显式欧拉N=40，下面为结果：
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\配点法：隐式欧拉：加多N点.png">
+    <br>
+</div>
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\配点法：隐式欧拉：配点N增多.gif">
+    <br>
+</div>
+
+#### 梯形法
+N=20，下面为结果
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\梯形法：N=20.png">
+    <br>
+</div>
+
+<div align="center">
+    <img src="Trajcetory_optimization_Direct_collocation\fig\配点法：梯形法：N=20.gif">
+    <br>
+</div>
+
+#### 结论
+隐式欧拉精度大于显式欧拉，二者都需要增多决策向量进行精度的提升
+
+梯形法精度最高，不需要额外增多决策变量
 
 ## 直接配点法：MPC
 
