@@ -117,7 +117,7 @@ $$
 可以查看初始值为: $x_0 = [1;0;1;0]$ 的效果，即初始q1位置为1，q1速度为1
 
 <div align="center">
-    <img src="Trajcetory_optimization\fig\初始x1010.png">
+    <img src="Trajcetory_optimization_Single_Shooting\fig\初始x1010.png">
     <br>
 </div>
 
