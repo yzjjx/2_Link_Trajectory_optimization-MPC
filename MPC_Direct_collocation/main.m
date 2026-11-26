@@ -48,12 +48,9 @@ for iter = 1:num_steps
 
     tau1 = w_star(1:N);
     tau2 = w_star(N+1:2*N);
+    % 将第一个力矩输入给动力学
     u = [tau1(1);tau2(1)];
-
-    u_start = [tau1(1); tau2(1)];
-    u_end   = [tau1(2); tau2(2)];
-    
-    dynamics_call = @(t,x) ControlDynamics(t, x, u_start + (t - t_current)/dT * (u_end - u_start));
+    dynamics_call = @(t,x) ControlDynamics(t, x, u);
 
     tspan_iter = [t_current t_current+dT-1e-6];
     [tout,zout] = ode45(dynamics_call,tspan_iter,x0);

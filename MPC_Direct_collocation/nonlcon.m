@@ -18,31 +18,27 @@ function [g,geq] = nonlcon(w,x_current,dt)
     geq_ic = [q1(1);dq1(1);q2(1);dq2(1)]-x_current;
     % geq_fc = [q1(N)-q1_target;q2(N)-q2_target;dq1(N);dq2(N)];
 
-    % ddq获取，有N个节点，但是只有N-1个相邻区间
-    ddq1 = zeros(N, 1);
-    ddq2 = zeros(N, 1);
-
-    for k = 1:N
+    % 前向欧拉：用区间起点的状态和力矩计算角加速度
+    ddq1 = zeros(N-1, 1);
+    ddq2 = zeros(N-1, 1);
+    for k = 1:N-1
+        u_k = [tau1(k); tau2(k)];
         x_k = [q1(k); dq1(k); q2(k); dq2(k)];
-        dx_k = ControlDynamics((k-1)*dt, x_k, [tau1(k);tau2(k)]);
+        dx_k = ControlDynamics((k-1)*dt, x_k, u_k);
         ddq1(k) = dx_k(2);
         ddq2(k) = dx_k(4);
     end
 
-    % % 速度等式约束
-    % geq_dq1_defect = (dq1(2:N)-dq1(1:N-1))/dt-ddq1(1:N-1);
-    % geq_dq2_defect = (dq2(2:N)-dq2(1:N-1))/dt-ddq2(1:N-1);
     left = 1:N-1;
     right = 2:N;
 
-    % 位置缺陷：角度差分减去两端角速度的平均值
-    geq_q1_defect = diff(q1)/dt - (dq1(left) + dq1(right))/2;
-    geq_q2_defect = diff(q2)/dt - (dq2(left) + dq2(right))/2;
+    % 位置缺陷
+    geq_q1_defect = (q1(right) - q1(left))/dt - dq1(left);
+    geq_q2_defect = (q2(right) - q2(left))/dt - dq2(left);
 
-    % 速度缺陷：角速度差分减去两端角加速度的平均值
-    geq_dq1_defect = diff(dq1)/dt - (ddq1(left) + ddq1(right))/2;
-    geq_dq2_defect = diff(dq2)/dt - (ddq2(left) + ddq2(right))/2;
-
+    % 速度缺陷
+    geq_dq1_defect = (dq1(right) - dq1(left))/dt - ddq1;
+    geq_dq2_defect = (dq2(right) - dq2(left))/dt - ddq2;
 
     geq = [geq_ic;geq_q1_defect;geq_q2_defect;geq_dq1_defect;geq_dq2_defect];
 end

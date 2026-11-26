@@ -297,4 +297,86 @@ N=20，下面为结果
 
 ## 直接配点法：MPC
 
-实现基于直接配点法的MPC控制
+实现基于直接配点法的MPC控制，代码文件参考：`MPC_Direct_collocation`
+
+这里非线性不等式约束的代码不变
+
+代价函数也非常好理解
+
+$$
+\begin{aligned}
+J(w)
+&= \underbrace{
+\sum_{k=1}^{N}
+\left[
+(q_1^{\mathrm{ref}}-q_{1,k})^2
++(q_2^{\mathrm{ref}}-q_{2,k})^2
+\right]
+}_{\text{角度跟踪误差}}
+\\
+&\quad + \underbrace{
+10^{-4}\sum_{k=1}^{N-1}
+\left[
+(\tau_{1,k+1}-\tau_{1,k})^2
++(\tau_{2,k+1}-\tau_{2,k})^2
+\right]
+}_{\text{力矩平滑项}}.
+\end{aligned}
+$$
+
+### 主循环
+
+主循环需要定义预测步长，也就是预测时间T，MPC最主要的就是将最优化部分放到循环里面求解，下面给出MPC的主要流程：
+
+MPC（模型预测控制）
+1. 测量状态：获取系统当前的状态。
+2. 执行轨迹优化：在固定的预测时间范围 $T$ 内进行轨迹优化。
+3. 执行最优控制输入：将优化得到的控制输入 $u(t)$ 施加到系统上，持续 $T_s$ 秒。
+4. 返回第一步：重新测量状态，重复上述过程。
+
+根据这个流程，看代码：`MPC_Direct_collocation\main.m`
+
+主要是在循环里面持续计算非线性约束和fmincon最优化
+
+```matlab
+constraint = @(w) nonlcon(w, x0, dT);
+[w_star,fvel,exitflag] = fmincon(objective,w0,A,b,Aeq,beq,lb,ub,constraint,options);
+```
+
+然后将计算的第一组力矩输入给动力学，然后用ode45得到机械臂施加力矩后走到了什么新的状态，作为下一组优化的起点，在真实系统中，可以由传感器获取新状态
+
+```matlab
+tau1 = w_star(1:N);
+tau2 = w_star(N+1:2*N);
+% 将第一个力矩输入给动力学
+u = [tau1(1);tau2(1)];
+dynamics_call = @(t,x) ControlDynamics(t, x, u);
+
+tspan_iter = [t_current t_current+dT-1e-6];
+[tout,zout] = ode45(dynamics_call,tspan_iter,x0);
+t_current = t_current + dT;
+
+% 更新当前状态
+x0 = zout(end,:).';
+```
+
+## 控制频率计算
+预测时间为2s，预测节点为20，因此一个控制周期 dT = 2/19 = 0.1053s，因此控制频率的公式为：
+
+$$
+T_s = \frac{N-1}{T} 
+$$
+
+### 运行结果
+不加扰动跟踪效果：
+
+<div align="center">
+    <img src="MPC_Direct_collocation\fig\MPC跟踪.gif">
+    <br>
+</div>
+
+末端添加扰动：
+<div align="center">
+    <img src="MPC_Direct_collocation\fig\MPC跟踪_加扰动.gif">
+    <br>
+</div>

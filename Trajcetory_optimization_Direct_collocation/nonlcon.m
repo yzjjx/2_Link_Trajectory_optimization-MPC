@@ -59,14 +59,12 @@ function [g,geq] = nonlcon(w)
     right = 2:N;
 
     % 位置缺陷：角度差分减去两端角速度的平均值
-    % geq_q1_defect = (q1(left)-q1(right))/dt-dq1();
-    geq_q1_defect = diff(q1)/dt - (dq1(left) + dq1(right))/2;
-    geq_q2_defect = diff(q2)/dt - (dq2(left) + dq2(right))/2;
+    geq_q1_defect = (q1(right) - q1(left))/dt - (dq1(left) + dq1(right))/2;
+    geq_q2_defect = (q2(right) - q2(left))/dt - (dq2(left) + dq2(right))/2;
 
     % 速度缺陷：角速度差分减去两端角加速度的平均值
-    geq_dq1_defect = diff(dq1)/dt - (ddq1(left) + ddq1(right))/2;
-    geq_dq2_defect = diff(dq2)/dt - (ddq2(left) + ddq2(right))/2;
-
+    geq_dq1_defect = (dq1(right) - dq1(left))/dt - (ddq1(left) + ddq1(right))/2;
+    geq_dq2_defect = (dq2(right) - dq2(left))/dt - (ddq2(left) + ddq2(right))/2;
 
     geq = [geq_ic;geq_fc;geq_q1_defect;geq_q2_defect;geq_dq1_defect;geq_dq2_defect];
 end
