@@ -199,21 +199,21 @@ geq = [q1_final-q1_target;q2_final-q2_target;dq1_final;dq2_final];
 输入力矩为：
 
 <div align="center">
-    <img src="Trajcetory_optimization\fig\输入力矩.png">
+    <img src="Trajcetory_optimization_Single_Shooting\fig\输入力矩.png">
     <br>
 </div>
 
 关节角与关节速度为：
 
 <div align="center">
-    <img src="Trajcetory_optimization\fig\轨迹优化结果.png">
+    <img src="Trajcetory_optimization_Single_Shooting\fig\轨迹优化结果.png">
     <br>
 </div>
 
 轨迹运动动画为：
 
 <div align="center">
-    <img src="Trajcetory_optimization\fig\轨迹运动.gif">
+    <img src="Trajcetory_optimization_Single_Shooting\fig\轨迹运动.gif">
     <br>
 </div>
 
